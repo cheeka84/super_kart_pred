@@ -1,4 +1,4 @@
-name: Super Kart Sales Prediction Pipeline
+name: Super Kart Sales Prediction Pipeline Test
 
 on:
   push:
