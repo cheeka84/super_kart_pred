@@ -3,6 +3,7 @@ name: Super Kart Sales Prediction Pipeline
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:    # allows manual run
 
 jobs:
 
@@ -13,10 +14,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r super_kart_pred/requirements.txt
+
       - name: Upload dataset to Hugging Face Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -31,10 +34,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r super_kart_pred/requirements.txt
+
       - name: Run data preparation
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -76,17 +81,9 @@ jobs:
       - name: Expose MLflow via ngrok (only if token present)
         run: |
           if [ -n "$NGROK_AUTH_TOKEN" ]; then
-            python - <<'PY'
-            import os
-            from pyngrok import ngrok, conf
-            conf.get_default().auth_token = os.environ["NGROK_AUTH_TOKEN"]
-            url = ngrok.connect(5000, "http").public_url
-            print("public_url="+url)
-            with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                f.write(f"public_url={url}\n")
-            PY
+            python -c "import os; from pyngrok import ngrok, conf; conf.get_default().auth_token=os.environ['NGROK_AUTH_TOKEN']; url=ngrok.connect(5000,'http').public_url; print('public_url='+url); open(os.environ['GITHUB_OUTPUT'],'a').write(f'public_url={url}\n')"
           else
-            echo "NGROK_AUTH_TOKEN not set; skipping tunnel."
+            echo 'NGROK_AUTH_TOKEN not set; skipping tunnel.'
           fi
 
       - name: Show MLflow URL(s) and optional keep-alive
@@ -113,10 +110,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r super_kart_pred/requirements.txt
+
       - name: Push files to Frontend Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
