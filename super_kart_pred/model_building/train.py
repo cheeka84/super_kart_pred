@@ -177,7 +177,7 @@ with mlflow.start_run():
     xgb_r2 = res_xgb["metrics"]["xgb_test_r2"]
     rf_r2  = res_rf["metrics"]["rf_test_r2"]
 
-    if xgb_r2 <= rf_r2:
+    if xgb_r2 >= rf_r2:
         chosen_name = "xgboost"
         chosen = res_xgb["best_estimator"]
         chosen_r2 = xgb_r2
