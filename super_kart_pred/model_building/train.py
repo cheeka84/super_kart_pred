@@ -103,8 +103,8 @@ rf_reg = RandomForestRegressor(
 )
 
 xgb_grid = {
-    "xgb__n_estimators": [100, 200, 400],
-    "xgb__max_depth": [4, 6, 8],
+    "xgb__n_estimators": [200, 500, 1000],
+    "xgb__max_depth": [8, 10, 15],
     "xgb__learning_rate": [0.01,0.05, 0.1],
     "xgb__subsample": [0.8, 1.0],
     "xgb__colsample_bytree": [0.8, 1.0],
@@ -112,10 +112,10 @@ xgb_grid = {
 }
 
 rf_grid = {
-    "rf__n_estimators": [100, 300, 600],
-    "rf__max_depth": [7, 12, 20],
+    "rf__n_estimators": [100, 200, 500],
+    "rf__max_depth": [10, 12, 15],
     "rf__min_samples_split": [2, 5, 10],
-    "rf__min_samples_leaf": [1, 2],
+    "rf__min_samples_leaf": [5, 8, 10],
     "rf__max_features": ["sqrt", "log2"],
 }
 
@@ -172,23 +172,23 @@ with mlflow.start_run():
     print("RF metrics:", res_rf["metrics"])
 
     # =========================
-    # Choose the BEST by test RMSE
+    # Choose the BEST by test R2
     # =========================
-    xgb_rmse = res_xgb["metrics"]["xgb_test_rmse"]
-    rf_rmse  = res_rf["metrics"]["rf_test_rmse"]
+    xgb_r2 = res_xgb["metrics"]["xgb_test_r2"]
+    rf_r2  = res_rf["metrics"]["rf_test_r2"]
 
-    if xgb_rmse <= rf_rmse:
+    if xgb_r2 <= rf_r2:
         chosen_name = "xgboost"
         chosen = res_xgb["best_estimator"]
-        chosen_rmse = xgb_rmse
+        chosen_r2 = xgb_r2
     else:
         chosen_name = "random_forest"
         chosen = res_rf["best_estimator"]
-        chosen_rmse = rf_rmse
+        chosen_r2 = rf_r2
 
     mlflow.log_param("selected_model", chosen_name)
-    mlflow.log_metric("selected_test_rmse", chosen_rmse)
-    print(f"Selected model: {chosen_name} (test RMSE={chosen_rmse:.4f})")
+    mlflow.log_metric("selected_test_rmse", chosen_r2)
+    print(f"Selected model: {chosen_name} (test RMSE={chosen_r2:.4f})")
 
     # Save chosen model
     out_path = f"superkart_{chosen_name}_regressor.joblib"
