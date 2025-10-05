@@ -51,18 +51,19 @@ st.success(f"Loaded model: `{model_file}` from {MODEL_REPO_ID}")
 # ----------------------------
 col1, col2 = st.columns(2)
 with col1:
-    product_weight = st.number_input("Product_Weight", min_value=0.0, value=500.0, step=1.0)
-    product_area   = st.number_input("Product_Allocated_Area", min_value=0.0, value=50.0, step=1.0)
-    product_mrp    = st.number_input("Product_MRP", min_value=0.0, value=199.0, step=1.0)
+    product_weight = st.number_input("Product_Weight", min_value=0.0, value=10.0, step=1.0)
+    product_area   = st.number_input("Product_Allocated_Area", min_value=0.0, value=0.01, step=0.01)
+    product_mrp    = st.number_input("Product_MRP", min_value=0.0, value=10.0, step=1.0)
     est_year       = st.number_input("Store_Establishment_Year", min_value=1950, max_value=datetime.now().year, value=2015, step=1)
 
 with col2:
-    sugar_content  = st.selectbox("Product_Sugar_Content", options=["Low", "Medium", "High", "No Sugar"])
-    product_type   = st.selectbox("Product_Type", options=["Beverages", "Staples", "Snacks", "Personal Care", "Household", "Dairy", "Produce"])
-    store_id       = st.selectbox("Store_Id", options=["S1", "S2", "S3", "S4"])
-    store_size     = st.selectbox("Store_Size", options=["Small", "Medium", "Large"])
+    sugar_content  = st.selectbox("Product_Sugar_Content", options=["Low Sugar", "Regular", "No Sugar"])
+    product_type   = st.selectbox("Product_Type", options=["Frozen Foods","Dairy","Canned","Baking Goods","Health and Hygiene","Snack Foods","Meat","Household",
+    "Hard Drinks","Fruits and Vegetables","Breads","Soft Drinks","Breakfast","Others","Starchy Foods","Seafood"])
+    store_id       = st.selectbox("Store_Id", options=["OUT001", "OUT002", "OUT003", "OUT004"])
+    store_size     = st.selectbox("Store_Size", options=["Small", "Medium", "High"])
     city_type      = st.selectbox("Store_Location_City_Type", options=["Tier 1", "Tier 2", "Tier 3"])
-    store_type     = st.selectbox("Store_Type", options=["Grocery", "Supermarket", "Hypermarket", "Convenience"])
+    store_type     = st.selectbox("Store_Type", options=['Supermarket Type2', 'Departmental Store', 'Supermarket Type1', 'Food Mart'])
 
 # Engineered features (prep.py added these; compute here as well)
 current_year = datetime.now().year
