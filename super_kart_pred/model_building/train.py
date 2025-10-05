@@ -103,9 +103,9 @@ rf_reg = RandomForestRegressor(
 )
 
 xgb_grid = {
-    "xgb__n_estimators": [200, 500, 1000],
-    "xgb__max_depth": [8, 10, 15],
-    "xgb__learning_rate": [0.01,0.05, 0.1],
+    "xgb__n_estimators": [200, 400, 500, 600],
+    "xgb__max_depth": [5,6,8],
+    "xgb__learning_rate": [0.005,0.01,0.05],
     "xgb__subsample": [0.8, 1.0],
     "xgb__colsample_bytree": [0.8, 1.0],
     "xgb__reg_lambda": [1.0, 2.0],
