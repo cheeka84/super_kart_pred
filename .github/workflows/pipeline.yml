@@ -1,19 +1,22 @@
-name: Super Kart Sales Prediction Pipeline Test
+name: Super Kart Sales Prediction Pipeline
 
 on:
   push:
-    branches:
-      - main  # Automatically triggers on push to the main branch
+    branches: [ main ]
 
 jobs:
-
   register-dataset:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install Dependencies
-        run: pip install -r super_kart_pred/requirements.txt
-      - name: Upload Dataset to Hugging Face Hub
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r super_kart_pred/requirements.txt
+      - name: Upload dataset to Hugging Face Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python super_kart_pred/model_building/data_register.py
@@ -22,42 +25,93 @@ jobs:
     needs: register-dataset
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install Dependencies
-        run: pip install -r super_kart_pred/requirements.txt
-      - name: Run Data Preparation
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r super_kart_pred/requirements.txt
+      - name: Run data preparation
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python super_kart_pred/model_building/prep.py
 
-
-  model-traning:
+  model-training:
     needs: data-prep
     runs-on: ubuntu-latest
+    env:
+      # Make your code log to the local MLflow server
+      MLFLOW_TRACKING_URI: http://127.0.0.1:5000
+      MLFLOW_EXPERIMENT: SuperKart-Sales-Regression
+      KEEP_ALIVE_SECONDS: "600"                  # keep tunnel open ~10 min
     steps:
-      - uses: actions/checkout@v3
-      - name: Install Dependencies
-        run: pip install -r super_kart_pred/requirements.txt
-      - name: Start MLflow Server
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies (+ mlflow + ngrok)
         run: |
-          nohup mlflow ui --host 0.0.0.0 --port 5000 &  # Run MLflow UI in the background
-          sleep 5  # Wait for a moment to let the server starts
-      - name: Verify MLflow is running
+          python -m pip install --upgrade pip
+          pip install -r super_kart_pred/requirements.txt
+          pip install mlflow pyngrok
+
+      - name: Start MLflow UI
         run: |
-          curl -sSf http://127.0.0.1:5000 || (echo "MLflow failed to start" && exit 1)
-      - name: Model Building
+          nohup mlflow ui --host 0.0.0.0 --port 5000 >/tmp/mlflow.log 2>&1 &
+          # health check (retry for up to ~20s)
+          for i in {1..10}; do
+            if curl -fsS http://127.0.0.1:5000 >/dev/null; then
+              echo "MLflow is up ✅"
+              break
+            fi
+            echo "Waiting for MLflow... ($i/10)"
+            sleep 2
+          done
+
+      - name: Expose MLflow via ngrok (optional)
+        id: ngrok
+        if: ${{ secrets.NGROK_AUTH_TOKEN != '' }}
+        env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          from pyngrok import ngrok, conf
+          conf.get_default().auth_token = os.environ["NGROK_AUTH_TOKEN"]
+          url = ngrok.connect(5000, "http").public_url
+          print("public_url="+url)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"public_url={url}\n")
+          PY
+      - name: Show MLflow URL(s)
+        run: |
+          echo "Local MLflow:  http://127.0.0.1:5000"
+          if [ -n "${{ steps.ngrok.outputs.public_url }}" ]; then
+            echo "Public MLflow: ${{ steps.ngrok.outputs.public_url }}"
+            echo "Keeping alive for $KEEP_ALIVE_SECONDS seconds..."
+            sleep "$KEEP_ALIVE_SECONDS"
+          fi
+
+      - name: Train model
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python super_kart_pred/model_building/train.py
 
-
   deploy-hosting:
+    needs: [model-training, data-prep, register-dataset]
     runs-on: ubuntu-latest
-    needs: [model-traning,data-prep,register-dataset]
     steps:
-      - uses: actions/checkout@v3
-      - name: Install Dependencies
-        run: pip install -r super_kart_pred/requirements.txt
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r super_kart_pred/requirements.txt
       - name: Push files to Frontend Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
