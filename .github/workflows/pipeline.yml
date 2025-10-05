@@ -52,7 +52,7 @@ jobs:
     env:
       MLFLOW_TRACKING_URI: http://127.0.0.1:5000
       MLFLOW_EXPERIMENT: SuperKart-Sales-Regression
-      KEEP_ALIVE_SECONDS: "600"
+      KEEP_ALIVE_SECONDS: "1800"
       NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
