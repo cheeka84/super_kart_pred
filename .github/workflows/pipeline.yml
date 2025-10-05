@@ -5,6 +5,7 @@ on:
     branches: [ main ]
 
 jobs:
+
   register-dataset:
     runs-on: ubuntu-latest
     steps:
@@ -20,6 +21,7 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python super_kart_pred/model_building/data_register.py
+
 
   data-prep:
     needs: register-dataset
@@ -38,14 +40,15 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python super_kart_pred/model_building/prep.py
 
+
   model-training:
     needs: data-prep
     runs-on: ubuntu-latest
     env:
-      # Make your code log to the local MLflow server
       MLFLOW_TRACKING_URI: http://127.0.0.1:5000
       MLFLOW_EXPERIMENT: SuperKart-Sales-Regression
-      KEEP_ALIVE_SECONDS: "600"                  # keep tunnel open ~10 min
+      KEEP_ALIVE_SECONDS: "600"
+      NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -61,7 +64,6 @@ jobs:
       - name: Start MLflow UI
         run: |
           nohup mlflow ui --host 0.0.0.0 --port 5000 >/tmp/mlflow.log 2>&1 &
-          # health check (retry for up to ~20s)
           for i in {1..10}; do
             if curl -fsS http://127.0.0.1:5000 >/dev/null; then
               echo "MLflow is up ✅"
@@ -71,26 +73,28 @@ jobs:
             sleep 2
           done
 
-      - name: Expose MLflow via ngrok (optional)
-        id: ngrok
-        if: ${{ secrets.NGROK_AUTH_TOKEN != '' }}
-        env:
-          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      - name: Expose MLflow via ngrok (only if token present)
         run: |
-          python - <<'PY'
-          import os
-          from pyngrok import ngrok, conf
-          conf.get_default().auth_token = os.environ["NGROK_AUTH_TOKEN"]
-          url = ngrok.connect(5000, "http").public_url
-          print("public_url="+url)
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"public_url={url}\n")
-          PY
-      - name: Show MLflow URL(s)
+          if [ -n "$NGROK_AUTH_TOKEN" ]; then
+            python - <<'PY'
+            import os
+            from pyngrok import ngrok, conf
+            conf.get_default().auth_token = os.environ["NGROK_AUTH_TOKEN"]
+            url = ngrok.connect(5000, "http").public_url
+            print("public_url="+url)
+            with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                f.write(f"public_url={url}\n")
+            PY
+          else
+            echo "NGROK_AUTH_TOKEN not set; skipping tunnel."
+          fi
+
+      - name: Show MLflow URL(s) and optional keep-alive
         run: |
           echo "Local MLflow:  http://127.0.0.1:5000"
-          if [ -n "${{ steps.ngrok.outputs.public_url }}" ]; then
-            echo "Public MLflow: ${{ steps.ngrok.outputs.public_url }}"
+          if [ -f "$GITHUB_OUTPUT" ] && grep -q '^public_url=' "$GITHUB_OUTPUT"; then
+            PUB_URL=$(grep '^public_url=' "$GITHUB_OUTPUT" | tail -n1 | cut -d= -f2-)
+            echo "Public MLflow: $PUB_URL"
             echo "Keeping alive for $KEEP_ALIVE_SECONDS seconds..."
             sleep "$KEEP_ALIVE_SECONDS"
           fi
@@ -99,6 +103,7 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python super_kart_pred/model_building/train.py
+
 
   deploy-hosting:
     needs: [model-training, data-prep, register-dataset]
