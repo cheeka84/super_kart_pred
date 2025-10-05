@@ -84,6 +84,10 @@ before = len(superkart_df)
 superkart_df = superkart_df.drop_duplicates()
 print("Dropped duplicates:", before - len(superkart_df))
 
+# Replace the reg value to Regular
+superkart_df['Product_Sugar_Content'] = superkart_df['Product_Sugar_Content'].replace(['reg'],"Regular")
+
+
 # Trim string columns & normalize spacing
 for col in superkart_df.select_dtypes(include="object").columns:
     superkart_df[col] = superkart_df[col].astype(str).str.strip().str.replace(r"\s+", " ", regex=True)
