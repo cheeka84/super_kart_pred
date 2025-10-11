@@ -27,7 +27,7 @@ if not HF_TOKEN:
     raise SystemExit("HF_TOKEN/HUGGINGFACE_HUB_TOKEN not set. Export or pass via CI.")
 
 # MLflow: use local file store if server not provided
-mlflow.set_tracking_uri("http://localhost:8080")
+mlflow.set_tracking_uri("http://localhost:5000")
 # mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns"))
 mlflow.set_experiment(os.getenv("MLFLOW_EXPERIMENT", "SuperKart-Sales-Regression"))
 
