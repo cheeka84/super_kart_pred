@@ -27,7 +27,8 @@ if not HF_TOKEN:
     raise SystemExit("HF_TOKEN/HUGGINGFACE_HUB_TOKEN not set. Export or pass via CI.")
 
 # MLflow: use local file store if server not provided
-mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns"))
+mlflow.set_tracking_uri("http://localhost:8080")
+# mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns"))
 mlflow.set_experiment(os.getenv("MLFLOW_EXPERIMENT", "SuperKart-Sales-Regression"))
 
 # Paths to splits on HF Hub
@@ -172,23 +173,23 @@ with mlflow.start_run():
     print("RF metrics:", res_rf["metrics"])
 
     # =========================
-    # Choose the BEST by test R2
+    # Choose the BEST by test RMSE
     # =========================
-    xgb_r2 = res_xgb["metrics"]["xgb_test_r2"]
-    rf_r2  = res_rf["metrics"]["rf_test_r2"]
+    xgb_rmse = res_xgb["metrics"]["xgb_test_rmse"]
+    rf_rmse  = res_rf["metrics"]["rf_test_rmse"]
 
-    if xgb_r2 >= rf_r2:
+    if xgb_rmse <= rf_rmse:
         chosen_name = "xgboost"
         chosen = res_xgb["best_estimator"]
-        chosen_r2 = xgb_r2
+        chosen_rmse = xgb_rmse
     else:
         chosen_name = "random_forest"
         chosen = res_rf["best_estimator"]
-        chosen_r2 = rf_r2
+        chosen_rmse = rf_rmse
 
     mlflow.log_param("selected_model", chosen_name)
-    mlflow.log_metric("selected_test_rmse", chosen_r2)
-    print(f"Selected model: {chosen_name} (test RMSE={chosen_r2:.4f})")
+    mlflow.log_metric("selected_test_rmse", chosen_rmse)
+    print(f"Selected model: {chosen_name} (test RMSE={chosen_rmse:.4f})")
 
     # Save chosen model
     out_path = f"superkart_{chosen_name}_regressor.joblib"
