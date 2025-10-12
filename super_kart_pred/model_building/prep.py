@@ -186,16 +186,18 @@ for fname, obj in [("Xtrain.csv", Xtrain), ("Xtest.csv", Xtest), ("ytrain.csv", 
 
 ## Upload the Train/Test Split to HF##
 
-# Upload processed splits to the dataset repository under a subfolder "splits/"
+# upload processed splits to the dataset repository under a subfolder "splits/"
+data_dir = Path("super_kart_pred/data")  # ensure we point to the correct folder
 
-for file_path in ["Xtrain.csv", "Xtest.csv", "ytrain.csv", "ytest.csv"]:
-    print(f"Uploading {file_path} -> {REPO_ID}")
+for fname in ["Xtrain.csv", "Xtest.csv", "ytrain.csv", "ytest.csv"]:
+    local_path = data_dir / fname  #super_kart_pred/data/Xtrain.csv
+    print(f"uploading {local_path} -> {REPO_ID}/splits/{fname}")
     api.upload_file(
-        path_or_fileobj=file_path,
-        path_in_repo=f"splits/{os.path.basename(file_path)}",  # maintain clear folder structure
+        path_or_fileobj=str(local_path),
+        path_in_repo=f"splits/{fname}",   # nice structure inside the repo
         repo_id=REPO_ID,
         repo_type=REPO_TYPE,
         commit_message="Add regression splits with engineered features",
     )
 
-print("Upload complete.")
+print("upload complete.")
