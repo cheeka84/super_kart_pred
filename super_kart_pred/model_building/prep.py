@@ -1,16 +1,3 @@
-# ------------------------------------------------------------
-# SuperKart Regression Data Preparation Script
-# ------------------------------------------------------------
-# This script automates the MLOps data-preparation stage:
-#   1. Load raw data (local or from Hugging Face Hub)
-#   2. Clean & normalize values
-#   3. Perform basic feature engineering
-#   4. Split into train/test datasets
-#   5. Upload processed splits back to Hugging Face Hub
-#
-# Purpose: Ensures fully reproducible, version-controlled datasets
-#           for downstream model training pipelines.
-# ------------------------------------------------------------
 
 import os
 from pathlib import Path
@@ -21,20 +8,19 @@ from sklearn.model_selection import train_test_split
 from huggingface_hub import HfApi, create_repo
 from huggingface_hub.errors import RepositoryNotFoundError
 
-# ----------------------------
-# CONFIGURATION
-# ----------------------------
-# Define where the raw dataset resides. Prefer local file if available,
-# otherwise fall back to Hugging Face remote dataset URI.
-LOCAL_DATASET_PATH = "/mnt/data/SuperKart_mlops.csv"
-HF_DATASET_PATH = "hf://datasets/cheeka84/super-kart-pred/SuperKart_mlops.csv"
+
+## Configuration##
+
+# Define where the raw dataset resides on Hugging Face i.e. cheeka84/super-kart-pred. 
+
+HF_DATASET_PATH = "hf://datasets/cheeka84/super-kart-pred/SuperKart.csv"
 
 # Destination Hugging Face dataset repository for storing processed splits.
-REPO_ID = "cheeka84/super-kart-pred"      # change if you want to store elsewhere
+REPO_ID = "cheeka84/super-kart-pred"      
 REPO_TYPE = "dataset"
 
-# Retrieve your Hugging Face authentication token from environment.
-# This token is mandatory for upload access (use CI secrets or local env vars).
+# Retrieve Hugging Face authentication token from environment.
+# This token is mandatory for upload access 
 HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_HUB_TOKEN")
 if not HF_TOKEN:
     raise SystemExit("HF_TOKEN/HUGGINGFACE_HUB_TOKEN not set. Export it or pass via CI env.")
@@ -42,9 +28,8 @@ if not HF_TOKEN:
 # Initialize Hugging Face API client.
 api = HfApi(token=HF_TOKEN)
 
-# ----------------------------
-# VALIDATE OR CREATE DATASET REPO
-# ----------------------------
+# Validate or create dataset repo
+
 try:
     # Try fetching repo info; if found, it already exists.
     api.repo_info(repo_id=REPO_ID, repo_type=REPO_TYPE)
@@ -60,11 +45,10 @@ except RepositoryNotFoundError:
         token=HF_TOKEN,
     )
 
-# ----------------------------
-# LOAD DATASET
-# ----------------------------
-# Prefer the local CSV if available, else fallback to Hugging Face storage.
-src_path = LOCAL_DATASET_PATH if os.path.isfile(LOCAL_DATASET_PATH) else HF_DATASET_PATH
+## Load Dataset##
+
+# Loading Dataset from Hugging Face
+src_path = HF_DATASET_PATH
 print("Reading dataset from:", src_path)
 
 # Attempt to read CSV; provide descriptive error if hf:// protocol fails.
@@ -78,13 +62,13 @@ except Exception as e:
 
 print("Dataset loaded successfully. Shape:", superkart_df.shape)
 
-# ----------------------------
-# DEFINE TARGET AND FEATURES
-# ----------------------------
-# The column we want to predict:
+## Define Target and Features##
+
+# The column we want to predict is Product_Store_Sales_Total
+
 target = "Product_Store_Sales_Total"
 
-# Base numeric features expected in the raw dataset
+# Base numeric data type in the raw dataset
 numeric_features = [
     "Product_Weight",
     "Product_Allocated_Area",
@@ -92,7 +76,7 @@ numeric_features = [
     "Store_Establishment_Year",
 ]
 
-# Base categorical features
+# Base categorical features in the raw dataset
 categorical_features = [
     "Product_Id",
     "Product_Sugar_Content",
@@ -103,12 +87,11 @@ categorical_features = [
     "Store_Type",
 ]
 
-# ----------------------------
-# DATA CLEANING
-# ----------------------------
+## Data Cleaning##
+
 cols_to_drop = []
 
-# Drop almost-unique ID columns that do not add predictive power
+# Drop unique ID columns that are not useful to prediction 
 if "Product_Id" in superkart_df.columns:
     cols_to_drop.append("Product_Id")
 
@@ -135,14 +118,15 @@ for col in ["Product_Weight", "Product_Allocated_Area", "Product_MRP",
     if col in superkart_df.columns:
         superkart_df[col] = pd.to_numeric(superkart_df[col], errors="coerce")
 
-# Drop any rows missing the target variable — essential for supervised learning
+# Drop any rows missing the target variable — essential for regression
 before = len(superkart_df)
 superkart_df = superkart_df.dropna(subset=[target])
 print("Dropped rows with missing target:", before - len(superkart_df))
 
-# ----------------------------
-# FEATURE ENGINEERING
-# ----------------------------
+
+##Feature Engineering##
+
+## Computing Age of the Store, which makes more sense than the year of establishment and Price MRP per Allocated Area for that Product, establishes the correlation between Price and Area in one single variable.
 current_year = datetime.now().year
 
 # Derive "Store_Age" feature from establishment year
@@ -157,10 +141,10 @@ if "Product_MRP" in superkart_df.columns and "Product_Allocated_Area" in superka
     superkart_df["Price_per_Area"] = superkart_df["Product_MRP"] / denom
     superkart_df["Price_per_Area"] = superkart_df["Price_per_Area"].replace([np.inf, -np.inf], np.nan)
     superkart_df["Price_per_Area"] = superkart_df["Price_per_Area"].fillna(
-        superkart_df["Price_per_Area"].median()
+        superkart_df["Price_per_Area"].median() # if Price_per_Area is na, fill it with median
     )
 
-# Compile the final feature lists after engineering
+# Compile the final feature lists after engineering by appending Price_per_Area and Store_Establishment_Area to the dateframe superkart
 final_numeric = [c for c in numeric_features if c in superkart_df.columns]
 if "Store_Age" in superkart_df.columns:
     final_numeric.append("Store_Age")
@@ -184,23 +168,24 @@ print("Final shapes — X:", X.shape, " y:", y.shape)
 print("Numeric features:", final_numeric)
 print("Categorical features:", final_categorical)
 
-# ----------------------------
-# TRAIN/TEST SPLIT
-# ----------------------------
+
+## Train/Test Split##
+
 # Perform an 80/20 split for model training and validation
 Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # Save split files locally (CSV format for portability)
 for fname, obj in [("Xtrain.csv", Xtrain), ("Xtest.csv", Xtest), ("ytrain.csv", ytrain), ("ytest.csv", ytest)]:
-    Path(fname).write_text("") if False else None  # placeholder (no-op, prevents linter warnings)
+    Path(fname).write_text("") if False else None 
     obj.to_csv(fname, index=False)
     print("Saved", Path(fname).resolve())
 
-# ----------------------------
-# UPLOAD TO HUGGING FACE HUB
-# ----------------------------
+
+## Upload the Train/Test Split to HF##
+
+
 # Upload processed splits to the dataset repository under a subfolder "splits/"
-# This keeps data versions organized and supports lineage tracking for MLflow.
+
 for file_path in ["Xtrain.csv", "Xtest.csv", "ytrain.csv", "ytest.csv"]:
     print(f"Uploading {file_path} -> {REPO_ID}")
     api.upload_file(
