@@ -174,15 +174,17 @@ print("Categorical features:", final_categorical)
 # Perform an 80/20 split for model training and validation
 Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Save split files locally (CSV format for portability)
+# save train and test data inside 'super_kart_pred/data' folder
+data_dir = Path("super_kart_pred/data")
+data_dir.mkdir(parents=True, exist_ok=True)   # create folder if it doesn't exist
+
 for fname, obj in [("Xtrain.csv", Xtrain), ("Xtest.csv", Xtest), ("ytrain.csv", ytrain), ("ytest.csv", ytest)]:
-    Path(fname).write_text("") if False else None 
-    obj.to_csv(fname, index=False)
-    print("Saved", Path(fname).resolve())
+    file_path = data_dir / fname   # super_kart_pred/data/Xtrain.csv
+    obj.to_csv(file_path, index=False)  # save dataframe to csv
+    print("saved:", file_path.resolve())
 
 
 ## Upload the Train/Test Split to HF##
-
 
 # Upload processed splits to the dataset repository under a subfolder "splits/"
 
